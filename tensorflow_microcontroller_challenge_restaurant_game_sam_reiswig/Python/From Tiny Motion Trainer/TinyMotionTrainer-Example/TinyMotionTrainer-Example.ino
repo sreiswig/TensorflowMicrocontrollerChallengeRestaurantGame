@@ -92,8 +92,8 @@ TfLiteTensor* tflOutputTensor = nullptr;
 // be adjusted based on the model you are using
 constexpr int tensorArenaSize = 8 * 1024;
 byte tensorArena[tensorArenaSize];
-BLEService gameControlService("FEED");
-BLECharCharacteristic gestureCharacteristic("BEEF", // UUID
+BLEService gameControlService("19B10000-FEED-FEED-FEED-D104768A1214");
+BLECharCharacteristic gestureCharacteristic("19B10000-BEEF-BEEF-BEEF-D104768A1214", // UUID
   BLERead | BLENotify);
 
 //==============================================================================
@@ -120,6 +120,7 @@ void setup() {
   gameControlService.addCharacteristic(gestureCharacteristic);
   BLE.addService(gameControlService);
   gestureCharacteristic.writeValue('N');
+  BLE.advertise();
 
   // Initialize IMU sensors
   if (!IMU.begin()) {
