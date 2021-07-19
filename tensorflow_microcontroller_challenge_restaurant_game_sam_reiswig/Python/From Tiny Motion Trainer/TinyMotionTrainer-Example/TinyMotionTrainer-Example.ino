@@ -25,6 +25,7 @@
 //==============================================================================
 
 #include <Arduino_LSM9DS1.h>
+#include <ArduinoBLE.h>
 #include <TensorFlowLite.h>
 #include <tensorflow/lite/micro/all_ops_resolver.h>
 #include <tensorflow/lite/micro/micro_error_reporter.h>
@@ -50,6 +51,10 @@
 // Array to map gesture index to a name
 const char *GESTURES[] = {
     "Left Swipe", "Right Swipe", "Flip", "Beat Egg", "Chop", "Poke"
+};
+// because I'm being lazy
+const char BLECommands[] = {
+  'L', 'R', 'F', 'B', 'P'
 };
 
 
@@ -87,19 +92,34 @@ TfLiteTensor* tflOutputTensor = nullptr;
 // be adjusted based on the model you are using
 constexpr int tensorArenaSize = 8 * 1024;
 byte tensorArena[tensorArenaSize];
-
+BLEService gameControlService("FEED");
+BLECharCharacteristic gestureCharacteristic("BEEF", // UUID
+  BLERead | BLENotify);
 
 //==============================================================================
 // Setup / Loop
 //==============================================================================
 
-void setup() {
+void setup() {  
   pinMode(LED_BUILTIN, OUTPUT);
         
   Serial.begin(9600);
 
   // Wait for serial monitor to connect
   while (!Serial);
+
+  // begin Bluetooth initialization
+  if (!BLE.begin()) {
+    Serial.println("starting BLE failed!");
+
+    while (1);
+  }
+
+  BLE.setLocalName("GameController");
+  BLE.setAdvertisedService(gameControlService);
+  gameControlService.addCharacteristic(gestureCharacteristic);
+  BLE.addService(gameControlService);
+  gestureCharacteristic.writeValue('N');
 
   // Initialize IMU sensors
   if (!IMU.begin()) {
@@ -210,7 +230,7 @@ void loop() {
         
         Serial.print("Winner: ");
         Serial.print(GESTURES[maxIndex]);
-        
+        gestureCharacteristic.writeValue(BLECommands[maxIndex]);
         Serial.println();
 
         // Add delay to not double trigger
