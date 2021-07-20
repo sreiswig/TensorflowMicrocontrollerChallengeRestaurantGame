@@ -44,17 +44,16 @@
 #include "model.h"
 
 // Values from Tiny Motion Trainer
-#define MOTION_THRESHOLD 0.2
+#define MOTION_THRESHOLD 0.15
 #define CAPTURE_DELAY 200 // This is now in milliseconds
 #define NUM_SAMPLES 20
 
 // Array to map gesture index to a name
 const char *GESTURES[] = {
-    "Chop", "Beat", "Flip"
+    "Chop", "Beat"
 };
-// because I'm being lazy
 const char BLECommands[] = {
-  'C', 'B', 'F'
+  'C', 'B'
 };
 
 
@@ -100,11 +99,11 @@ BLECharCharacteristic gestureCharacteristic("BEEF", // UUID
 // Setup / Loop
 //==============================================================================
 
-void setup() {  
+void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
         
   Serial.begin(9600);
-  
+
   // Wait for serial monitor to connect
   while (!Serial);
 
@@ -141,7 +140,6 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-  
   // begin Bluetooth initialization
   if (!BLE.begin()) {
     Serial.println("starting BLE failed!");
@@ -160,99 +158,86 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Before BLE Central");
-  BLEDevice central = BLE.central();
-  Serial.println("After BLE Central");
- /*
-  if (central) {
-    Serial.print("Connected to central: ");
-    // print the central's BT address:
-    Serial.println(central.address());
-    while (central.connected()) {
-      // Variables to hold IMU data
-      float aX, aY, aZ, gX, gY, gZ;
-    
-      // Wait for motion above the threshold setting
-      while (!isCapturing) {
-        gestureCharacteristic.writeValue('N');
-        if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-         
-          IMU.readAcceleration(aX, aY, aZ);
-          IMU.readGyroscope(gX, gY, gZ);
-    
-          // Sum absolute values
-          float average = fabs(aX / 4.0) + fabs(aY / 4.0) + fabs(aZ / 4.0) + fabs(gX / 2000.0) + fabs(gY / 2000.0) + fabs(gZ / 2000.0);
-          average /= 6.;
-    
-          // Above the threshold?
-          if (average >= MOTION_THRESHOLD) {
-            isCapturing = true;
-            numSamplesRead = 0;
-            break;
-          }
-        }
-      }
-    
-      while (isCapturing) {
-        // Check if both acceleration and gyroscope data is available
-        if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-          // read the acceleration and gyroscope data
-          IMU.readAcceleration(aX, aY, aZ);
-          IMU.readGyroscope(gX, gY, gZ);
-    
-          // Normalize the IMU data between -1 to 1 and store in the model's
-          // input tensor. Accelerometer data ranges between -4 and 4,
-          // gyroscope data ranges between -2000 and 2000
-          tflInputTensor->data.f[numSamplesRead * 6 + 0] = aX / 4.0;
-          tflInputTensor->data.f[numSamplesRead * 6 + 1] = aY / 4.0;
-          tflInputTensor->data.f[numSamplesRead * 6 + 2] = aZ / 4.0;
-          tflInputTensor->data.f[numSamplesRead * 6 + 3] = gX / 2000.0;
-          tflInputTensor->data.f[numSamplesRead * 6 + 4] = gY / 2000.0;
-          tflInputTensor->data.f[numSamplesRead * 6 + 5] = gZ / 2000.0;
-    
-          numSamplesRead++;
-    
-          // Do we have the samples we need?
-          if (numSamplesRead >= NUM_SAMPLES) {
-            
-            // Stop capturing
-            isCapturing = false;
-            
-            // Run inference
-            Serial.println("going to invoke status");
-            TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-            if (invokeStatus != kTfLiteOk) {
-              Serial.println("Error: Invoke failed!");
-              while (1);
-              return;
-            }
-            Serial.println("after invoke status");
-    
-            // Loop through the output tensor values from the model
-            int maxIndex = 0;
-            float maxValue = 0;
-            for (int i = 0; i < NUM_GESTURES; i++) {
-              float _value = tflOutputTensor->data.f[i];
-              if(_value > maxValue){
-                maxValue = _value;
-                maxIndex = i;
-              }
-              Serial.print(GESTURES[i]);
-              Serial.print(": ");
-              Serial.println(tflOutputTensor->data.f[i], 6);
-            }
-            
-            Serial.print("Winner: ");
-            Serial.print(GESTURES[maxIndex]);
-            gestureCharacteristic.writeValue(BLECommands[maxIndex]);
-            Serial.println();
-    
-            // Add delay to not double trigger
-            delay(CAPTURE_DELAY);
-          }
-        }
+  // Variables to hold IMU data
+  float aX, aY, aZ, gX, gY, gZ;
+
+  // Wait for motion above the threshold setting
+  while (!isCapturing) {
+    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+     
+      IMU.readAcceleration(aX, aY, aZ);
+      IMU.readGyroscope(gX, gY, gZ);
+
+      // Sum absolute values
+      float average = fabs(aX / 4.0) + fabs(aY / 4.0) + fabs(aZ / 4.0) + fabs(gX / 2000.0) + fabs(gY / 2000.0) + fabs(gZ / 2000.0);
+      average /= 6.;
+
+      // Above the threshold?
+      if (average >= MOTION_THRESHOLD) {
+        isCapturing = true;
+        numSamplesRead = 0;
+        break;
       }
     }
   }
-  */
+
+  while (isCapturing) {
+
+    // Check if both acceleration and gyroscope data is available
+    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+
+      // read the acceleration and gyroscope data
+      IMU.readAcceleration(aX, aY, aZ);
+      IMU.readGyroscope(gX, gY, gZ);
+
+      // Normalize the IMU data between -1 to 1 and store in the model's
+      // input tensor. Accelerometer data ranges between -4 and 4,
+      // gyroscope data ranges between -2000 and 2000
+      tflInputTensor->data.f[numSamplesRead * 6 + 0] = aX / 4.0;
+      tflInputTensor->data.f[numSamplesRead * 6 + 1] = aY / 4.0;
+      tflInputTensor->data.f[numSamplesRead * 6 + 2] = aZ / 4.0;
+      tflInputTensor->data.f[numSamplesRead * 6 + 3] = gX / 2000.0;
+      tflInputTensor->data.f[numSamplesRead * 6 + 4] = gY / 2000.0;
+      tflInputTensor->data.f[numSamplesRead * 6 + 5] = gZ / 2000.0;
+
+      numSamplesRead++;
+
+      // Do we have the samples we need?
+      if (numSamplesRead == NUM_SAMPLES) {
+        
+        // Stop capturing
+        isCapturing = false;
+        
+        // Run inference
+        TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+        if (invokeStatus != kTfLiteOk) {
+          Serial.println("Error: Invoke failed!");
+          while (1);
+          return;
+        }
+
+        // Loop through the output tensor values from the model
+        int maxIndex = 0;
+        float maxValue = 0;
+        for (int i = 0; i < NUM_GESTURES; i++) {
+          float _value = tflOutputTensor->data.f[i];
+          if(_value > maxValue){
+            maxValue = _value;
+            maxIndex = i;
+          }
+          Serial.print(GESTURES[i]);
+          Serial.print(": ");
+          Serial.println(tflOutputTensor->data.f[i], 6);
+        }
+        
+        Serial.print("Winner: ");
+        Serial.print(GESTURES[maxIndex]);
+        
+        Serial.println();
+
+        // Add delay to not double trigger
+        delay(CAPTURE_DELAY);
+      }
+    }
+  }
 }
